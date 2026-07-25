@@ -50,8 +50,14 @@ func ReadDefinition(ctx context.Context, client *lsp.Client, symbolName string) 
 					if !strings.HasSuffix(symbol.GetName(), "::"+symbolName) && !strings.HasSuffix(symbol.GetName(), "."+symbolName) && symbol.GetName() != symbolName {
 						continue
 					}
-				} else if symbol.GetName() != symbolName {
-					// For non-methods, exact match only
+				} else if !strings.HasSuffix(symbol.GetName(), "::"+symbolName) && symbol.GetName() != symbolName {
+					// For non-methods, match the unqualified name either bare or as the
+					// final segment of a qualified name (e.g. query "UniqueHandle" matches
+					// "cfgo::UniqueHandle"). clangd's workspace/symbol returns qualified
+					// names for many C++ symbols; an exact-only match silently dropped
+					// them, making definition(symbolName) return "not found" for symbols
+					// that hover/index resolve perfectly. Mirrors the method suffix logic
+					// above (sans the "." variant — non-method C++ symbols use "::").
 					continue
 				}
 			}
