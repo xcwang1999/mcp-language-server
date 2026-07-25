@@ -46,8 +46,15 @@ func FindReferences(ctx context.Context, client *lsp.Client, symbolName string) 
 			if symbol.GetName() != symbolName && symbol.GetName() != methodName {
 				continue
 			}
-		} else if symbol.GetName() != symbolName {
-			// For unqualified names, exact match only
+		} else if !strings.HasSuffix(symbol.GetName(), "::"+symbolName) && symbol.GetName() != symbolName {
+			// For unqualified names, match either bare or as the final segment of a
+			// qualified name (e.g. query "frozen_mask_device" matches
+			// "cfgo::detail::NodeTypeRuntime<T>::frozen_mask_device"). clangd's
+			// workspace/symbol returns qualified names for many C++ symbols (incl.
+			// fields); an exact-only match silently dropped them, making
+			// references(symbolName) return "No references found" for symbols that
+			// are fully indexed. Mirrors the definition.go fix. (Sans the "."
+			// variant — the qualified-name branch above already handles Type.method.)
 			continue
 		}
 
